@@ -1,4 +1,6 @@
 import os
+import sys
+import signal
 import asyncio
 import time
 import base64
@@ -956,11 +958,8 @@ async def regenerate_speech(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("No previous response found.")
 
-def main():
-    """Run the bot."""
+async def main():
     try:
-        # ... (existing validation code)
-
         # Create the Application
         app = Application.builder().token(TOKEN).build()
         
@@ -977,14 +976,53 @@ def main():
         app.add_handler(CommandHandler("speak", regenerate_speech))
         
         print("Bot is running...")
-        app.run_polling(
-            drop_pending_updates=True
+        
+        # Initialize and start the application
+        await app.initialize()
+        await app.start()
+        
+        # Start polling
+        await app.updater.start_polling(
+            drop_pending_updates=True,
+            # Add a timeout to prevent hanging
+            timeout=30
         )
+        
+        # Keep the bot running
+        while True:
+            await asyncio.sleep(3600)  # Check every hour
     
     except KeyboardInterrupt:
         print("Bot stopped by user.")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        # Log the full traceback
+        import traceback
+        traceback.print_exc()
+    finally:
+        # Ensure proper cleanup
+        try:
+            await app.stop()
+            await app.shutdown()
+        except Exception:
+            pass
+
+def run_bot():
+    """
+    Entry point for running the bot
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        
+        
+        loop.run_until_complete(main())
+    except Exception as e:
+        print(f"Bot startup error: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    run_bot()
 
 if __name__ == "__main__":
     main()
